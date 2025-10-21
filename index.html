@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>2 Photos in 1 - Simple Combiner</title>
+  <style>
+    :root{
+      --bg:#0f172a; --card:#0b1220; --accent:#06b6d4; --muted:#94a3b8; --radius:12px;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial; margin:0; min-height:100vh; background:linear-gradient(180deg,#071124 0%, #081024 100%); color:#e6eef8; display:flex; align-items:center; justify-content:center; padding:20px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01)); border:1px solid rgba(255,255,255,0.03); padding:24px; border-radius:var(--radius); width:500px; max-width:100%}
+    h1{font-size:24px; margin:0 0 8px; text-align:center}
+    .subtitle{text-align:center; color:var(--muted); margin-bottom:32px}
+    
+    /* Steps */
+    .steps{display:flex; justify-content:space-between; margin-bottom:32px; position:relative}
+    .steps::before{content:''; position:absolute; top:20px; left:50px; right:50px; height:2px; background:var(--muted); opacity:0.3; z-index:1}
+    .step{display:flex; flex-direction:column; align-items:center; position:relative; z-index:2}
+    .step-number{width:40px; height:40px; border-radius:50%; background:var(--muted); display:flex; align-items:center; justify-content:center; font-weight:bold; margin-bottom:8px; opacity:0.3}
+    .step.active .step-number{background:var(--accent); opacity:1}
+    .step-text{font-size:12px; color:var(--muted)}
+    .step.active .step-text{color:var(--accent)}
+    
+    /* Upload areas */
+    .upload-areas{display:flex; gap:16px; margin-bottom:24px}
+    .upload-area{flex:1; border:2px dashed rgba(255,255,255,0.1); border-radius:var(--radius); padding:32px 16px; text-align:center; cursor:pointer; transition:all 0.3s}
+    .upload-area:hover{border-color:var(--accent); background:rgba(6,182,212,0.05)}
+    .upload-area.has-image{border-color:var(--accent); background:rgba(6,182,212,0.1)}
+    .upload-icon{font-size:32px; margin-bottom:8px; opacity:0.7}
+    .upload-text{font-size:14px; color:var(--muted)}
+    .upload-area.has-image .upload-text{color:var(--accent)}
+    
+    /* Hidden file inputs */
+    .file-input{display:none}
+    
+    /* Preview image */
+    .preview-image{max-width:100%; max-height:120px; border-radius:6px; margin-top:8px; display:none}
+    
+    /* Buttons */
+    .buttons{display:flex; gap:12px; margin-top:24px}
+    button{flex:1; background:var(--accent); border:none; color:#042028; padding:14px; border-radius:10px; font-weight:600; cursor:pointer; font-size:16px; transition:all 0.3s}
+    button:hover{opacity:0.9; transform:translateY(-1px)}
+    button:disabled{opacity:0.5; cursor:not-allowed; transform:none}
+    .secondary{background:transparent; border:1px solid rgba(255,255,255,0.1); color:var(--muted)}
+    
+    /* Loading */
+    .loading{display:none; text-align:center; margin:20px 0}
+    .spinner{width:40px; height:40px; border:4px solid rgba(255,255,255,0.1); border-left:4px solid var(--accent); border-radius:50%; animation:spin 1s linear infinite; margin:0 auto 16px}
+    @keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}
+    
+    /* Result */
+    .result{display:none; text-align:center; margin-top:24px}
+    .result-image{max-width:100%; border-radius:8px; box-shadow:0 8px 24px rgba(2,6,23,0.8); margin-bottom:20px}
+    .download-btn{background:#10b981; color:white}
+  </style>
+</head>
+<body>
+  <div class="card" role="main">
+    <h1>2 Photos in 1</h1>
+    <p class="subtitle">Combine two photos into one - simple and fast</p>
+    
+    <!-- Steps indicator -->
+    <div class="steps">
+      <div class="step active" id="step1">
+        <div class="step-number">1</div>
+        <div class="step-text">Upload Photos</div>
+      </div>
+      <div class="step" id="step2">
+        <div class="step-number">2</div>
+        <div class="step-text">Generate</div>
+      </div>
+      <div class="step" id="step3">
+        <div class="step-number">3</div>
+        <div class="step-text">Download</div>
+      </div>
+    </div>
+    
+    <!-- Upload areas -->
+    <div class="upload-areas">
+      <div class="upload-area" id="uploadArea1">
+        <div class="upload-icon">📷</div>
+        <div class="upload-text">Tap to upload first photo</div>
+        <img class="preview-image" id="preview1" alt="First photo preview">
+      </div>
+      <div class="upload-area" id="uploadArea2">
+        <div class="upload-icon">📷</div>
+        <div class="upload-text">Tap to upload second photo</div>
+        <img class="preview-image" id="preview2" alt="Second photo preview">
+      </div>
+    </div>
+    
+    <!-- Hidden file inputs -->
+    <input type="file" id="file1" class="file-input" accept="image/*">
+    <input type="file" id="file2" class="file-input" accept="image/*">
+    
+    <!-- Buttons -->
+    <div class="buttons">
+      <button class="secondary" id="resetBtn">Reset</button>
+      <button id="generateBtn" disabled>Generate Combined Photo</button>
+    </div>
+    
+    <!-- Loading -->
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <div>Combining your photos...</div>
+    </div>
+    
+    <!-- Result -->
+    <div class="result" id="result">
+      <img class="result-image" id="resultImage" alt="Combined photo result">
+      <button class="download-btn" id="downloadBtn">Download Combined Photo</button>
+    </div>
+  </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Elements
+  const uploadArea1 = document.getElementById('uploadArea1');
+  const uploadArea2 = document.getElementById('uploadArea2');
+  const file1 = document.getElementById('file1');
+  const file2 = document.getElementById('file2');
+  const preview1 = document.getElementById('preview1');
+  const preview2 = document.getElementById('preview2');
+  const generateBtn = document.getElementById('generateBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const loading = document.getElementById('loading');
+  const result = document.getElementById('result');
+  const resultImage = document.getElementById('resultImage');
+  const downloadBtn = document.getElementById('downloadBtn');
+  const step1 = document.getElementById('step1');
+  const step2 = document.getElementById('step2');
+  const step3 = document.getElementById('step3');
+  
+  let image1 = null;
+  let image2 = null;
+  
+  // Event listeners for upload areas
+  uploadArea1.addEventListener('click', () => file1.click());
+  uploadArea2.addEventListener('click', () => file2.click());
+  
+  // Handle file selection
+  file1.addEventListener('change', function(e) {
+    handleFileSelect(e.target.files[0], 1);
+  });
+  
+  file2.addEventListener('change', function(e) {
+    handleFileSelect(e.target.files[0], 2);
+  });
+  
+  // Generate button
+  generateBtn.addEventListener('click', generateCombinedPhoto);
+  
+  // Reset button
+  resetBtn.addEventListener('click', resetAll);
+  
+  // Download button
+  downloadBtn.addEventListener('click', downloadPhoto);
+  
+  function handleFileSelect(file, number) {
+    if (!file || !file.type.startsWith('image/')) {
+      alert('Please select a valid image file');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const img = new Image();
+      img.onload = function() {
+        if (number === 1) {
+          image1 = img;
+          preview1.src = e.target.result;
+          preview1.style.display = 'block';
+          uploadArea1.classList.add('has-image');
+        } else {
+          image2 = img;
+          preview2.src = e.target.result;
+          preview2.style.display = 'block';
+          uploadArea2.classList.add('has-image');
+        }
+        
+        // Enable generate button if both images are loaded
+        if (image1 && image2) {
+          generateBtn.disabled = false;
+          step2.classList.add('active');
+        }
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  
+  function generateCombinedPhoto() {
+    if (!image1 || !image2) {
+      alert('Please upload both photos first');
+      return;
+    }
+    
+    // Show loading
+    loading.style.display = 'block';
+    result.style.display = 'none';
+    generateBtn.disabled = true;
+    
+    // Simulate processing time (small delay for better UX)
+    setTimeout(() => {
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      // Calculate dimensions for side-by-side layout
+      const maxHeight = Math.max(image1.height, image2.height);
+      const totalWidth = image1.width + image2.width;
+      const scale = Math.min(800 / totalWidth, 400 / maxHeight);
+      
+      const width1 = Math.round(image1.width * scale);
+      const width2 = Math.round(image2.width * scale);
+      const height1 = Math.round(image1.height * scale);
+      const height2 = Math.round(image2.height * scale);
+      const finalHeight = Math.max(height1, height2);
+      
+      canvas.width = width1 + width2;
+      canvas.height = finalHeight;
+      
+      // Draw white background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw images
+      ctx.drawImage(image1, 0, (finalHeight - height1) / 2, width1, height1);
+      ctx.drawImage(image2, width1, (finalHeight - height2) / 2, width2, height2);
+      
+      // Set result image
+      resultImage.src = canvas.toDataURL('image/jpeg', 0.9);
+      
+      // Hide loading, show result
+      loading.style.display = 'none';
+      result.style.display = 'block';
+      step3.classList.add('active');
+      
+      // Store canvas for download
+      resultImage.canvas = canvas;
+    }, 800);
+  }
+  
+  function downloadPhoto() {
+    if (!resultImage.canvas) return;
+    
+    const link = document.createElement('a');
+    link.download = 'combined-photo.jpg';
+    link.href = resultImage.canvas.toDataURL('image/jpeg', 0.9);
+    link.click();
+  }
+  
+  function resetAll() {
+    // Reset images
+    image1 = null;
+    image2 = null;
+    
+    // Reset previews
+    preview1.style.display = 'none';
+    preview2.style.display = 'none';
+    uploadArea1.classList.remove('has-image');
+    uploadArea2.classList.remove('has-image');
+    
+    // Reset file inputs
+    file1.value = '';
+    file2.value = '';
+    
+    // Reset UI
+    generateBtn.disabled = true;
+    loading.style.display = 'none';
+    result.style.display = 'none';
+    
+    // Reset steps
+    step2.classList.remove('active');
+    step3.classList.remove('active');
+  }
+});
+</script>
+</body>
+</html>
